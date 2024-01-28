@@ -1,8 +1,5 @@
 notebook/EDA.ipynb
 pths/
-predctions/
+predictions/
 trained_models/
-_pycache_/
-code/model.py
-code/east_dataset.py
-code/detect.py
+__pycache__/
