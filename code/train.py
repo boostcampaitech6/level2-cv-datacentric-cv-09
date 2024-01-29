@@ -51,7 +51,8 @@ def do_training(data_dir, model_dir, device, image_size, input_size, num_workers
         split='train',
         image_size=image_size,
         crop_size=input_size,
-        ignore_tags=ignore_tags
+        ignore_tags=ignore_tags,
+        gaussian_noise=True
     )
     dataset = EASTDataset(dataset)
     num_batches = math.ceil(len(dataset) / batch_size)

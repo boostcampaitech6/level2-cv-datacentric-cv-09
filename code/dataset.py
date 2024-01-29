@@ -342,7 +342,8 @@ class SceneTextDataset(Dataset):
                  ignore_under_threshold=10,
                  drop_under_threshold=1,
                  color_jitter=True,
-                 normalize=True):
+                 normalize=True,
+                 gaussian_noise=False):
         with open(osp.join(root_dir, 'ufo/{}.json'.format(split)), 'r') as f:
             anno = json.load(f)
 
@@ -352,6 +353,7 @@ class SceneTextDataset(Dataset):
 
         self.image_size, self.crop_size = image_size, crop_size
         self.color_jitter, self.normalize = color_jitter, normalize
+        self.gaussian_noise = gaussian_noise
 
         self.ignore_tags = ignore_tags
 
@@ -401,8 +403,11 @@ class SceneTextDataset(Dataset):
         funcs = []
         if self.color_jitter:
             funcs.append(A.ColorJitter(0.5, 0.5, 0.5, 0.25))
+        if self.gaussian_noise:
+            func.append(A.GaussNoise(p=0.5))
         if self.normalize:
             funcs.append(A.Normalize(mean=(0.77, 0.77, 0.77), std=(0.17, 0.18, 0.18)))
+        
         transform = A.Compose(funcs)
 
         image = transform(image=image)['image']
