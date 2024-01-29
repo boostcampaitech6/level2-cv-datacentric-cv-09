@@ -404,7 +404,7 @@ class SceneTextDataset(Dataset):
         if self.color_jitter:
             funcs.append(A.ColorJitter(0.5, 0.5, 0.5, 0.25))
         if self.gaussian_noise:
-            func.append(A.GaussNoise(p=0.5))
+            func.append(A.GaussNoise(p=0.5,var_limit=(1000, 8000)))
         if self.normalize:
             funcs.append(A.Normalize(mean=(0.77, 0.77, 0.77), std=(0.17, 0.18, 0.18)))
         
