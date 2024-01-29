@@ -3,10 +3,10 @@ import math
 import json
 from PIL import Image
 
-import torch
 import numpy as np
 import cv2
 import albumentations as A
+from albumentations.augmentations.geometric.resize import LongestMaxSize
 from torch.utils.data import Dataset
 from shapely.geometry import Polygon
 
@@ -404,10 +404,102 @@ class SceneTextDataset(Dataset):
         if self.color_jitter:
             funcs.append(A.ColorJitter(0.5, 0.5, 0.5, 0.25))
         if self.gaussian_noise:
-            func.append(A.GaussNoise(p=0.5,var_limit=(1000, 8000)))
+            funcs.append(A.GaussNoise(p=0.5, var_limit=(1000, 8000)))
         if self.normalize:
             funcs.append(A.Normalize(mean=(0.77, 0.77, 0.77), std=(0.17, 0.18, 0.18)))
-        
+
+        transform = A.Compose(funcs)
+
+        image = transform(image=image)['image']
+        word_bboxes = np.reshape(vertices, (-1, 4, 2))
+        roi_mask = generate_roi_mask(image, vertices, labels)
+
+        return image, word_bboxes, roi_mask
+
+
+class SceneTextDatasetV2(Dataset):
+    def __init__(
+        self, root_dir, split='train', image_size=2048,
+        crop_size=1024, ignore_tags=[], val_aug=False,
+        ignore_under_threshold=10, drop_under_threshold=1,
+        color_jitter=True, normalize=True,
+        blur=True, noise=True
+    ):
+        with open(osp.join(root_dir, 'ufo/{}.json'.format(split)), 'r') as f:
+            anno = json.load(f)
+
+        self.split, self.val_aug = split, val_aug
+        self.anno = anno
+        self.image_fnames = sorted(anno['images'].keys())
+        self.image_dir = osp.join(root_dir, 'img', 'train')
+
+        self.image_size, self.crop_size = image_size, crop_size
+        self.color_jitter, self.normalize = color_jitter, normalize
+        self.noise, self.blur = noise, blur
+
+        self.ignore_tags = ignore_tags
+
+        self.drop_under_threshold = drop_under_threshold
+        self.ignore_under_threshold = ignore_under_threshold
+
+    def __len__(self):
+        return len(self.image_fnames)
+
+    def __getitem__(self, idx):
+        image_fname = self.image_fnames[idx]
+        image_fpath = osp.join(self.image_dir, image_fname)
+
+        vertices, labels = [], []
+        for word_info in self.anno['images'][image_fname]['words'].values():
+            word_tags = word_info['tags']
+
+            ignore_sample = any(elem for elem in word_tags if elem in self.ignore_tags)
+            num_pts = np.array(word_info['points']).shape[0]
+
+            if ignore_sample or num_pts > 4:
+                continue
+
+            vertices.append(np.array(word_info['points']).flatten())
+            labels.append(int(not word_info['illegibility']))
+        vertices = np.array(vertices, dtype=np.float32)
+        labels = np.array(labels, dtype=np.int64)
+
+        vertices, labels = filter_vertices(
+            vertices,
+            labels,
+            ignore_under=self.ignore_under_threshold,
+            drop_under=self.drop_under_threshold
+        )
+
+        image = Image.open(image_fpath)
+        if not self.val_aug:
+            image, vertices = resize_img(image, vertices, self.image_size)
+            image, vertices = adjust_height(image, vertices)
+            image, vertices = rotate_img(image, vertices)
+            image, vertices = crop_img(image, vertices, labels, self.crop_size)
+
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        image = np.array(image)
+
+        funcs = []
+        if not self.val_aug:
+            if self.noise:
+                funcs.append(A.GaussNoise(var_limit=(1000, 8000), p=0.5))
+            if self.blur:
+                funcs.append(A.Blur(blur_limit=(3, 11), p=0.5))
+            if self.color_jitter:
+                funcs.append(A.ColorJitter(0.5, 0.5, 0.5, 0.25, p=0.5))
+            if self.normalize:
+                funcs.append(A.Normalize(
+                    mean=[0.7760, 0.7722, 0.7671], std=[0.1717, 0.1789, 0.1868]
+                    ))
+        else:
+            funcs.append(LongestMaxSize(self.image_size))
+            funcs.append(A.PadIfNeeded(
+                min_height=self.image_size, min_width=self.image_size,
+                position=A.PadIfNeeded.PositionType.TOP_LEFT))
+            funcs.append(A.Normalize())
         transform = A.Compose(funcs)
 
         image = transform(image=image)['image']
