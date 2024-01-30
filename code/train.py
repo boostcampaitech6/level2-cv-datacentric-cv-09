@@ -65,6 +65,7 @@ def do_training(data_dir, model_dir, device, image_size, input_size, num_workers
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = EAST()
+    model.load_state_dict(torch.load('pths/aihub.pth'))
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[max_epoch // 2], gamma=0.1)
