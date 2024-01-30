@@ -191,7 +191,7 @@ def set_train_data(
         ignore_tags=ignore_tags,
         color_jitter=True,
         normalize=True,
-        blur=True,
+        blur=False,
         noise=True
     )
     train_dataset = EASTDataset(train_dataset)
