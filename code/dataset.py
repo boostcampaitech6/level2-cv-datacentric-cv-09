@@ -1,4 +1,5 @@
 import os.path as osp
+import os, pickle
 import math
 import json
 from PIL import Image
@@ -500,6 +501,62 @@ class SceneTextDatasetV2(Dataset):
                 min_height=self.image_size, min_width=self.image_size,
                 position=A.PadIfNeeded.PositionType.TOP_LEFT))
             funcs.append(A.Normalize())
+        transform = A.Compose(funcs)
+
+        image = transform(image=image)['image']
+        word_bboxes = np.reshape(vertices, (-1, 4, 2))
+        roi_mask = generate_roi_mask(image, vertices, labels)
+
+        return image, word_bboxes, roi_mask
+
+
+class SceneTextDatasetV3(Dataset):
+    def __init__(
+        self, root_dir, split='train', image_size=2048,
+        crop_size=1024, ignore_tags=[],
+        ignore_under_threshold=10, drop_under_threshold=1,
+        color_jitter=True, normalize=True,
+        blur=True, noise=True
+    ):
+        path = os.path.join(root_dir, 'ufo/image.npy')
+        self.images = np.load(path)
+        path = os.path.join(root_dir, 'ufo/vertices.pickle')
+        with open(path, "rb") as fr:
+            self.vertices = pickle.load(fr)
+        path = os.path.join(root_dir, 'ufo/labels.pickle')
+        with open(path, "rb") as fr:
+            self.labels = pickle.load(fr)
+
+        self.split = split
+        self.image_dir = osp.join(root_dir, 'img', 'train')
+
+        self.image_size, self.crop_size = image_size, crop_size
+        self.color_jitter, self.normalize = color_jitter, normalize
+        self.noise, self.blur = noise, blur
+
+        self.ignore_tags = ignore_tags
+
+        self.drop_under_threshold = drop_under_threshold
+        self.ignore_under_threshold = ignore_under_threshold
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        vertices = self.vertices[idx]
+        labels = self.labels[idx]
+        funcs = []
+        if self.noise:
+            funcs.append(A.GaussNoise(var_limit=(1000, 8000), p=0.5))
+        if self.blur:
+            funcs.append(A.Blur(blur_limit=(3, 15), p=0.5))
+        if self.color_jitter:
+            funcs.append(A.ColorJitter(0.5, 0.5, 0.5, 0.25, p=0.5))
+        if self.normalize:
+            funcs.append(A.Normalize(
+                mean=[0.7760, 0.7722, 0.7671], std=[0.1717, 0.1789, 0.1868]
+                ))
         transform = A.Compose(funcs)
 
         image = transform(image=image)['image']
