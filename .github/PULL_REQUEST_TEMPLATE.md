@@ -8,5 +8,5 @@
 -
 
 ## Issue Tags
-- Closed | Fixed: #
+- Closed: | Fixed: #
 - See also: #
