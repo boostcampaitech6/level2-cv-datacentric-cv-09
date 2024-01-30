@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import DataLoader
 import wandb
 
-from dataset import SceneTextDatasetV2
+from dataset import SceneTextDatasetV2, SceneTextDatasetV3
 from east_dataset import EASTDataset
 from detect import get_bboxes
 from deteval import calc_deteval_metrics
@@ -177,3 +177,28 @@ def evaluate(data_dir, split, predict_box):
         pred_bboxes, gt_box, transcription
     )
     return metric
+
+
+def set_train_data(
+    data_dir, image_size, input_size, ignore_tags,
+    batch_size, num_workers
+):
+    train_dataset = SceneTextDatasetV3(
+        data_dir,
+        split='train',
+        image_size=image_size,
+        crop_size=input_size,
+        ignore_tags=ignore_tags,
+        color_jitter=True,
+        normalize=True,
+        blur=False,
+        noise=True
+    )
+    train_dataset = EASTDataset(train_dataset)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers
+    )
+    return train_loader
