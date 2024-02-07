@@ -1,0 +1,19 @@
+data_dir: '../data/medical'
+split: 0
+ignore_tags: ['masked', 'excluded-region', 'maintable', 'stamp']
+
+image_size: 2048
+input_size: 1024
+
+batch_size: 8
+num_workers: 8
+
+seed: 42
+device: 0
+learning_rate: 1e-3
+max_epoch: 150
+save_interval: 5
+
+model_dir: './trained_models'
+
+experiment_name: 'OCR_train_val_0'

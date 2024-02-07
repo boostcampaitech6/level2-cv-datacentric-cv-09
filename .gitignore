@@ -1,0 +1,5 @@
+notebook/EDA.ipynb
+pths/
+predictions/
+trained_models/
+__pycache__/
